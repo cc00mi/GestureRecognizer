@@ -1,191 +1,156 @@
-# GestureRecognizer_v0.1
+# GestureRecognizer — 实时手语识别系统
 
-基于树莓派和摄像头的固定手势识别系统项目仓库。
+基于 **树莓派 / 电脑摄像头** 的实时中文手语识别系统。使用 MediaPipe 提取双手关键点，通过 TFLite 模型进行动态手势分类，在 OpenCV 窗口中实时显示识别结果。
 
-当前仓库已完成 1 号摄像头基础部分，并接入 4 号显示界面：
+## 功能特性
 
-- 树莓派摄像头环境跑通
-- 统一摄像头取帧接口
-- 摄像头实时预览脚本
-- 最终集成主程序显示摄像头画面、识别结果、置信度和 FPS
+- **实时摄像头取帧** — 自动探测摄像头，支持 USB 摄像头和树莓派 CSI 摄像头
+- **双手动态手语识别** — 识别 6 类中文手语：你好、再见、对不起、我爱你、没关系、谢谢
+- **中文显示界面** — 支持中文字体渲染，显示识别标签、置信度、帧率
+- **模型训练流水线** — 提供从视频数据集提取关键点到训练 TFLite 模型的完整脚本
 
-## 当前目录结构
+## 项目结构
 
-```text
+```
 GestureRecognizer/
-  camera/
-    __init__.py
-    frame_provider.py
-  ui/
-    __init__.py
-    display.py
-  main.py
-  preview_camera.py
-  requirements.txt
-  README.md
-  技术方案.md
-  接口文档.md
+├── main.py                       # 主程序入口
+├── preview_camera.py             # 摄像头预览工具
+├── recognizer.py                 # 统一识别接口
+├── dynamic_recognizer.py         # 动态手语识别实现
+├── extract_dynamic_dataset.py    # 从视频提取双手关键点序列
+├── train_dynamic_gesture_classifier.py  # 训练 TFLite 分类模型
+├── labels.json                   # 类别标签表
+│
+├── camera/
+│   ├── __init__.py
+│   └── frame_provider.py         # 摄像头取帧封装
+│
+├── model/
+│   └── dynamic_gesture_classifier/
+│       ├── dynamic_gesture_classifier.py     # TFLite 推理封装
+│       ├── dynamic_gesture_classifier.tflite # 预训练模型 (6类)
+│       ├── dynamic_gesture_label.csv         # 模型标签
+│       └── labels.json
+│
+├── ui/
+│   ├── __init__.py
+│   └── display.py                # 识别结果显示渲染
+│
+├── docs/                         # 设计文档与交付说明
+│
+├── requirements.txt              # 基础依赖 (运行)
+└── requirements-recognition.txt  # 训练依赖
 ```
 
 ## 环境准备
 
-建议在本地自行创建虚拟环境，不要把虚拟环境提交到 GitHub。
-
-### Windows
+### 安装依赖
 
 ```bash
+# 推荐使用虚拟环境
 python -m venv .venv
-.venv\Scripts\activate
+source .venv/bin/activate       # Linux
+# .venv\Scripts\activate        # Windows
+
+# 基础运行依赖
 pip install -r requirements.txt
 ```
 
-### Linux / Raspberry Pi
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-```
-
-如果树莓派上 `opencv-python` 安装失败，可以改用系统包：
+树莓派上如果 `opencv-python` 安装失败，可改用系统包：
 
 ```bash
 sudo apt update
 sudo apt install -y python3-opencv
 ```
 
-## 依赖安装
+如果需要训练模型，额外安装：
 
 ```bash
-pip install -r requirements.txt
+pip install -r requirements-recognition.txt
 ```
 
-## 摄像头预览
+## 快速使用
 
-### 自动探测并打开实时预览
+### 摄像头预览
 
 ```bash
-python3 preview_camera.py
+python preview_camera.py              # 自动探测摄像头
+python preview_camera.py --camera 0   # 指定设备
+python preview_camera.py --no-window --output test.jpg  # 无界面抓拍测试
 ```
 
-### 手动指定摄像头
+### 运行手语识别
 
 ```bash
-python3 preview_camera.py --camera 0
+python main.py
 ```
 
-或者：
+其他选项：
 
 ```bash
-python3 preview_camera.py --camera /dev/video0
+python main.py --camera 0 --width 640 --height 480 --fps 30
 ```
 
-### 无图形桌面时抓拍测试
+按 `Q` 或 `ESC` 退出。
+
+### 树莓派 VNC 远程查看
+
+1. 在树莓派上启用 VNC：`sudo raspi-config` → `Interface Options → VNC`
+2. 电脑安装 RealVNC Viewer，连接树莓派 IP
+3. 在 VNC 终端中运行 `python main.py`
+
+## 演示
+
+> <!-- 演示图片 / 视频链接占位 -->
+>
+> 运行截图：*（待补充）*
+>
+> 演示视频：*（待补充）*
+
+## 训练自定义模型
+
+准备视频数据集，按类别分文件夹存放：
+
+```
+dataset/
+├── 你好/
+│   ├── 001.mp4
+│   └── 002.mp4
+├── 谢谢/
+│   └── ...
+└── ...
+```
+
+提取双手关键点序列：
 
 ```bash
-python3 preview_camera.py --camera 0 --no-window --output test.jpg
+python extract_dynamic_dataset.py --dataset dataset --sequence_length 30 --max_num_hands 2
 ```
 
-## 最终显示界面
-
-默认自动探测摄像头，并显示 2 号识别接口返回的中文结果：
+训练分类模型：
 
 ```bash
-python3 main.py
+python train_dynamic_gesture_classifier.py --epochs 100 --feature_dim 126
 ```
 
-手动指定摄像头或视频路径：
+训练完成后，将 `model/dynamic_gesture_classifier/dynamic_gesture_classifier.tflite` 替换即可生效。
 
-```bash
-python3 main.py --camera 0
-python3 main.py --camera /dev/video0
-```
+当前模型训练效果：
 
-按 `q` 或 `Esc` 退出。
+| 指标 | 数值 |
+|------|------|
+| 有效样本 | 139 |
+| 训练准确率 | 0.9732 |
+| 验证准确率 | 0.7778 |
 
-## 树莓派通过 VNC 查看实时画面
+## 技术栈
 
-实测可用的操作方式如下：
+- **Python 3** — 主开发语言
+- **MediaPipe** — 手部关键点检测
+- **TensorFlow Lite** — 端侧推理
+- **OpenCV** — 摄像头取帧与画面渲染
+- **Pillow** — 中文字体渲染
 
-1. 执行：
+## 许可证
 
-```bash
-sudo raspi-config
-```
-
-2. 进入：
-
-`Advanced Options -> Wayland -> X11`
-
-`display->4Dp60nHDMI`
-
-`Interface Options -> VNC `
-
-3. 在电脑上安装并打开 `RealVNC Viewer`
-
-4. 在树莓派上查看 IP：
-
-```bash
-hostname -I
-```
-
-5. 测试：用电脑连接树莓派桌面后，在终端执行
-
-```bash
-source .venv/bin/activate
-python3 preview_camera.py
-```
-
-可看到实时显示画面
-
-如果项目不在 `.venv` 环境中，请按实际环境激活
-
-## 给组员的接口说明
-
-### 摄像头取帧接口
-
-```python
-from camera.frame_provider import CameraService, get_frame
-
-camera = CameraService()
-success, frame = camera.read()
-```
-
-或者：
-
-```python
-success, frame = get_frame()
-```
-
-约定：
-
-- `frame` 类型：`np.ndarray`
-- 图像格式：`OpenCV BGR`
-- 建议分辨率：`640x480`
-- 目标帧率：`15~30 FPS`
-
-### 显示界面接口
-
-```python
-from ui.display import render
-
-output = render(frame, result, fps=25.0)
-```
-
-`result` 至少包含：
-
-```python
-{
-    "label": "谢谢",
-    "score": 0.92
-}
-```
-
-如果 2 号识别接口返回 `bbox`、`landmarks`、`handedness` 或 `type`，界面会自动显示。
-
-## 后续协作建议
-
-- 2 号同学实现 `recognize(frame)`
-- 3 号同学补充 `labels.json` 和样本数据
-- 4 号同学已实现 `render(frame, result)` 并接入 `main.py`
-- 1 号同学负责最终树莓派实机联调
+本项目仅供学习交流使用。
