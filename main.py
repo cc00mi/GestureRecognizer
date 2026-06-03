@@ -1,68 +1,103 @@
+"""Final integration entry for the sign-recognition demo."""
+
+from __future__ import annotations
+
+import argparse
+import time
+from typing import Optional
+
 import cv2
+import numpy as np
 
 from camera.frame_provider import CameraService, probe_camera
+import recognizer as recognizer_module
+from ui.display import render
 
 
-def mock_recognize(frame):
-    """
-    这是给 1 号同学联调用的占位识别结果。
-    真正接入时由 2 号同学替换成 recognize(frame)。
-    """
-    height, width = frame.shape[:2]
-    return {
-        "label_id": -1,
-        "label": "未识别",
-        "score": 0.0,
-        "handedness": "Unknown",
-        "bbox": [0, 0, width, height],
-        "landmarks": [],
-    }
-
-
-def render(frame, result):
-    """
-    这是给 1 号同学联调用的占位界面逻辑。
-    真正接入时由 4 号同学替换成 render(frame, result)。
-    """
-    output = frame.copy()
-    text = f"当前识别: {result['label']} ({result['score']:.2f})"
-    cv2.putText(
-        output,
-        text,
-        (10, 30),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.8,
-        (0, 255, 255),
-        2,
-        cv2.LINE_AA,
-    )
-    return output
+WINDOW_NAME = "Sign Recognition Demo"
 
 
 def main() -> None:
-    camera_index = probe_camera()
+    args = parse_args()
+    camera_index = _camera_source(args.camera, args.width, args.height, args.fps)
     if camera_index is None:
-        print("没有探测到可读取图像帧的摄像头设备，请先运行 preview_camera.py 排查。")
+        _show_error("未检测到可用摄像头", args.width, args.height)
         return
 
-    camera = CameraService(camera_index=camera_index, width=640, height=480, fps=30)
+    camera = CameraService(camera_index=camera_index, width=args.width, height=args.height, fps=args.fps)
+    last_time = time.perf_counter()
+    current_fps: Optional[float] = None
+
+    try:
+        while True:
+            success, frame = camera.read()
+            if not success or frame is None:
+                frame = _blank_frame(args.width, args.height)
+                result = {"label": "未识别", "score": 0.0, "message": "摄像头读取失败"}
+            else:
+                result = recognizer_module.recognize(frame)
+
+            now = time.perf_counter()
+            elapsed = now - last_time
+            last_time = now
+            if elapsed > 0:
+                instant_fps = 1.0 / elapsed
+                current_fps = instant_fps if current_fps is None else current_fps * 0.85 + instant_fps * 0.15
+
+            output = render(frame, result, fps=current_fps)
+            cv2.imshow(WINDOW_NAME, output)
+
+            key = cv2.waitKey(1) & 0xFF
+            if key in (27, ord("q")):
+                break
+    finally:
+        camera.release()
+        _close_recognizer()
+        cv2.destroyAllWindows()
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Sign recognition display UI")
+    parser.add_argument("--camera", default="auto", help="Camera index, video path, or auto. Default: auto")
+    parser.add_argument("--width", type=int, default=640, help="Capture width. Default: 640")
+    parser.add_argument("--height", type=int, default=480, help="Capture height. Default: 480")
+    parser.add_argument("--fps", type=int, default=30, help="Target capture FPS. Default: 30")
+    return parser.parse_args()
+
+
+def _camera_source(value: int | str, width: int, height: int, fps: int) -> Optional[int | str]:
+    if isinstance(value, int):
+        return value
+
+    normalized = value.strip().lower()
+    if normalized == "auto":
+        return probe_camera(width=width, height=height, fps=fps)
+
+    return int(value) if value.isdigit() else value
+
+
+def _blank_frame(width: int, height: int) -> np.ndarray:
+    return np.full((height, width, 3), 235, dtype=np.uint8)
+
+
+def _show_error(message: str, width: int, height: int) -> None:
+    frame = _blank_frame(width, height)
+    result = {"label": "未识别", "score": 0.0, "message": message}
+    output = render(frame, result)
+    cv2.imshow(WINDOW_NAME, output)
 
     while True:
-        success, frame = camera.read()
-        if not success or frame is None:
-            print("无法读取摄像头画面，请检查设备连接。")
+        key = cv2.waitKey(50) & 0xFF
+        if key in (27, ord("q")):
             break
 
-        result = mock_recognize(frame)
-        output = render(frame, result)
-        cv2.imshow("Sign Recognition Demo", output)
-
-        key = cv2.waitKey(1) & 0xFF
-        if key == ord("q"):
-            break
-
-    camera.release()
     cv2.destroyAllWindows()
+
+
+def _close_recognizer() -> None:
+    close_func = getattr(recognizer_module, "close", None)
+    if callable(close_func):
+        close_func()
 
 
 if __name__ == "__main__":

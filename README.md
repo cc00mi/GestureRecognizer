@@ -2,12 +2,12 @@
 
 基于树莓派和摄像头的固定手势识别系统项目仓库。
 
-当前仓库先完成了 1 号负责的基础部分：
+当前仓库已完成 1 号摄像头基础部分，并接入 4 号显示界面：
 
 - 树莓派摄像头环境跑通
 - 统一摄像头取帧接口
 - 摄像头实时预览脚本
-- 供 2 号、4 号同学联调的最小主程序
+- 最终集成主程序显示摄像头画面、识别结果、置信度和 FPS
 
 ## 当前目录结构
 
@@ -16,6 +16,9 @@ GestureRecognizer/
   camera/
     __init__.py
     frame_provider.py
+  ui/
+    __init__.py
+    display.py
   main.py
   preview_camera.py
   requirements.txt
@@ -83,6 +86,23 @@ python3 preview_camera.py --camera /dev/video0
 python3 preview_camera.py --camera 0 --no-window --output test.jpg
 ```
 
+## 最终显示界面
+
+默认自动探测摄像头，并显示 2 号识别接口返回的中文结果：
+
+```bash
+python3 main.py
+```
+
+手动指定摄像头或视频路径：
+
+```bash
+python3 main.py --camera 0
+python3 main.py --camera /dev/video0
+```
+
+按 `q` 或 `Esc` 退出。
+
 ## 树莓派通过 VNC 查看实时画面
 
 实测可用的操作方式如下：
@@ -144,9 +164,28 @@ success, frame = get_frame()
 - 建议分辨率：`640x480`
 - 目标帧率：`15~30 FPS`
 
+### 显示界面接口
+
+```python
+from ui.display import render
+
+output = render(frame, result, fps=25.0)
+```
+
+`result` 至少包含：
+
+```python
+{
+    "label": "谢谢",
+    "score": 0.92
+}
+```
+
+如果 2 号识别接口返回 `bbox`、`landmarks`、`handedness` 或 `type`，界面会自动显示。
+
 ## 后续协作建议
 
 - 2 号同学实现 `recognize(frame)`
 - 3 号同学补充 `labels.json` 和样本数据
-- 4 号同学实现 `render(frame, result)`
+- 4 号同学已实现 `render(frame, result)` 并接入 `main.py`
 - 1 号同学负责最终树莓派实机联调
