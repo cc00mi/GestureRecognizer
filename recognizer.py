@@ -25,6 +25,17 @@ def recognize(frame):
     return _default_recognizer.recognize(frame)
 
 
+def init(model_complexity=1):
+    global _default_recognizer
+    if _default_recognizer is not None:
+        _default_recognizer.close()
+    _default_recognizer = DynamicHandGestureRecognizer(
+        score_threshold=0.25,
+        stable_count=8,
+        model_complexity=model_complexity,
+    )
+
+
 def close():
     global _default_recognizer
     if _default_recognizer is not None:

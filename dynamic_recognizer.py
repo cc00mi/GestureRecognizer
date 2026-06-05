@@ -89,6 +89,7 @@ class DynamicHandGestureRecognizer(object):
         score_threshold=0.25,
         stable_count=8,
         label_path='model/dynamic_gesture_classifier/dynamic_gesture_label.csv',
+        model_complexity=1,
     ):
         self.sequence_length = sequence_length
         self.score_threshold = score_threshold
@@ -100,7 +101,8 @@ class DynamicHandGestureRecognizer(object):
         self.hands = mp.solutions.hands.Hands(
             static_image_mode=False,
             max_num_hands=2,
-            min_detection_confidence=0.7,
+            model_complexity=model_complexity,
+            min_detection_confidence=0.5,
             min_tracking_confidence=0.5,
         )
 
