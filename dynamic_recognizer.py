@@ -86,8 +86,8 @@ class DynamicHandGestureRecognizer(object):
     def __init__(
         self,
         sequence_length=30,
-        score_threshold=0.7,
-        stable_count=5,
+        score_threshold=0.25,
+        stable_count=8,
         label_path='model/dynamic_gesture_classifier/dynamic_gesture_label.csv',
     ):
         self.sequence_length = sequence_length

@@ -19,8 +19,8 @@ def recognize(frame):
     global _default_recognizer
     if _default_recognizer is None:
         _default_recognizer = DynamicHandGestureRecognizer(
-            score_threshold=0.35,
-            stable_count=20,
+            score_threshold=0.25,
+            stable_count=8,
         )
     return _default_recognizer.recognize(frame)
 
