@@ -20,7 +20,7 @@ def get_args():
     )
     parser.add_argument('--output', default='model/dynamic_gesture_classifier')
     parser.add_argument('--sequence_length', type=int, default=30)
-    parser.add_argument('--feature_dim', type=int, default=63)
+    parser.add_argument('--feature_dim', type=int, default=126)
     parser.add_argument('--epochs', type=int, default=100)
     parser.add_argument('--batch_size', type=int, default=16)
     parser.add_argument('--validation_split', type=float, default=0.2)

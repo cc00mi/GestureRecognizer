@@ -65,6 +65,23 @@ def make_frame_features(results):
     return frame_features['Left'] + frame_features['Right']
 
 
+def collect_landmarks(results):
+    """Flatten all detected hands into a list of normalized [x, y] points.
+
+    Each hand contributes 21 consecutive points, so downstream consumers can
+    chunk the list by 21 to redraw per-hand skeletons.
+    """
+    points = []
+    if not results.multi_hand_landmarks:
+        return points
+
+    for hand_landmarks in results.multi_hand_landmarks:
+        for landmark in hand_landmarks.landmark:
+            points.append([landmark.x, landmark.y])
+
+    return points
+
+
 class DynamicHandGestureRecognizer(object):
     def __init__(
         self,
@@ -96,26 +113,28 @@ class DynamicHandGestureRecognizer(object):
         results = self.hands.process(rgb_image)
         rgb_image.flags.writeable = True
 
+        landmarks = collect_landmarks(results)
+
         frame_features = make_frame_features(results)
         if frame_features is None:
             self.sequence.clear()
             self.prediction_history.clear()
-            return dict(NO_RESULT)
+            return self._no_result(landmarks)
 
         self.sequence.append(frame_features)
 
         if len(self.sequence) < self.sequence_length:
-            return dict(NO_RESULT)
+            return self._no_result(landmarks)
 
         label_id, score = self.classifier.predict(list(self.sequence))
         if score < self.score_threshold:
             self.prediction_history.clear()
-            return dict(NO_RESULT)
+            return self._no_result(landmarks)
 
         self.prediction_history.append(label_id)
         most_common_label_id, count = Counter(self.prediction_history).most_common(1)[0]
         if count < self.stable_count:
-            return dict(NO_RESULT)
+            return self._no_result(landmarks)
 
         label = (
             self.labels[most_common_label_id]
@@ -128,7 +147,14 @@ class DynamicHandGestureRecognizer(object):
             "label": label,
             "score": float(score),
             "type": "dynamic",
+            "landmarks": landmarks,
         }
+
+    @staticmethod
+    def _no_result(landmarks):
+        result = dict(NO_RESULT)
+        result["landmarks"] = landmarks
+        return result
 
     def close(self):
         self.hands.close()
