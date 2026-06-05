@@ -1,3 +1,4 @@
+import sys
 import time
 from typing import Optional, Tuple, Union
 
@@ -25,11 +26,7 @@ class CameraService:
         if self.cap is not None and self.cap.isOpened():
             return True
 
-        # URL 流不能指定 V4L2/Linux 后端；Windows 也不支持
-        if isinstance(self.camera_index, str):
-            self.cap = cv2.VideoCapture(self.camera_index)
-        else:
-            self.cap = cv2.VideoCapture(self.camera_index)
+        self.cap = cv2.VideoCapture(self.camera_index, _preferred_backend())
         if not self.cap.isOpened():
             return False
 
@@ -117,3 +114,11 @@ def probe_camera(
         if success and frame is not None:
             return candidate
     return None
+
+
+def _preferred_backend() -> int:
+    if sys.platform.startswith("win"):
+        return cv2.CAP_DSHOW
+    if sys.platform.startswith("linux"):
+        return cv2.CAP_V4L2
+    return cv2.CAP_ANY

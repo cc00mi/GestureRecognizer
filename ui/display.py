@@ -19,6 +19,20 @@ except ImportError:
 Color = Tuple[int, int, int]
 
 UNKNOWN_LABEL = "未识别"
+
+# MediaPipe 单手 21 个关键点的骨架连线（拇指/食指/中指/无名指/小指 + 手掌）。
+HAND_LANDMARK_COUNT = 21
+HAND_CONNECTIONS = (
+    (0, 1), (1, 2), (2, 3), (3, 4),
+    (0, 5), (5, 6), (6, 7), (7, 8),
+    (5, 9), (9, 10), (10, 11), (11, 12),
+    (9, 13), (13, 14), (14, 15), (15, 16),
+    (13, 17), (17, 18), (18, 19), (19, 20),
+    (0, 17),
+)
+LANDMARK_COLOR = (0, 220, 255)
+CONNECTION_COLOR = (40, 180, 80)
+
 FONT_CANDIDATES = [
     "C:/Windows/Fonts/msyh.ttc",
     "C:/Windows/Fonts/simhei.ttf",
@@ -82,13 +96,30 @@ def _draw_detection(
     parsed_bbox = _parse_bbox(bbox)
     if parsed_bbox is not None:
         x1, y1, x2, y2 = parsed_bbox
-        cv2.rectangle(frame, (x1, y1), (x2, y2), (40, 180, 80), 2)
+        cv2.rectangle(frame, (x1, y1), (x2, y2), CONNECTION_COLOR, 2)
 
-    for point in landmarks:
-        parsed_point = _parse_point(point, frame.shape[1], frame.shape[0])
+    points = [
+        _parse_point(point, frame.shape[1], frame.shape[0])
+        for point in landmarks
+    ]
+
+    # 按 21 个点一组拆分（每只手一组），先画骨架连线再画关键点。
+    for start in range(0, len(points), HAND_LANDMARK_COUNT):
+        hand_points = points[start:start + HAND_LANDMARK_COUNT]
+        if len(hand_points) < HAND_LANDMARK_COUNT:
+            continue
+        for index_a, index_b in HAND_CONNECTIONS:
+            point_a = hand_points[index_a]
+            point_b = hand_points[index_b]
+            if point_a is None or point_b is None:
+                continue
+            cv2.line(frame, point_a, point_b, CONNECTION_COLOR, 2, cv2.LINE_AA)
+
+    for parsed_point in points:
         if parsed_point is None:
             continue
-        cv2.circle(frame, parsed_point, 3, (40, 180, 80), -1)
+        cv2.circle(frame, parsed_point, 4, LANDMARK_COLOR, -1, cv2.LINE_AA)
+        cv2.circle(frame, parsed_point, 4, (30, 90, 30), 1, cv2.LINE_AA)
 
 
 def _draw_text(
