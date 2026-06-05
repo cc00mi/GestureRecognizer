@@ -70,6 +70,11 @@ def _camera_source(value: int | str, width: int, height: int, fps: int) -> Optio
         return value
 
     normalized = value.strip().lower()
+
+    # URL 流 (RTSP / HTTP-MJPEG 等) 直接透传
+    if normalized.startswith(("rtsp://", "http://", "https://", "tcp://")):
+        return value
+
     if normalized == "auto":
         return probe_camera(width=width, height=height, fps=fps)
 

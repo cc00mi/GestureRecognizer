@@ -1,3 +1,0 @@
-mediapipe
-tensorflow
-numpy
