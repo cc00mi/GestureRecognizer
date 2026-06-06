@@ -15,13 +15,11 @@ class CameraService:
         width: int = 640,
         height: int = 480,
         fps: int = 30,
-        zoom: float = 0.0,
     ) -> None:
         self.camera_index = camera_index
         self.width = width
         self.height = height
         self.fps = fps
-        self.zoom = zoom
         self.cap: Optional[cv2.VideoCapture] = None
 
     def open(self) -> bool:
@@ -35,16 +33,6 @@ class CameraService:
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.width)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
         self.cap.set(cv2.CAP_PROP_FPS, self.fps)
-        if self.zoom > 0:
-            try:
-                self.cap.set(cv2.CAP_PROP_ZOOM, self.zoom)
-            except AttributeError:
-                pass
-
-        actual_w = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        actual_h = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        if (actual_w, actual_h) != (self.width, self.height):
-            print(f"[Camera] 请求 {self.width}x{self.height}，实际 {actual_w}x{actual_h}")
         return True
 
     def read(self) -> Tuple[bool, Optional[np.ndarray]]:

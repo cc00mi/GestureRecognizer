@@ -24,15 +24,12 @@ def main() -> None:
         _show_error("未检测到可用摄像头", args.width, args.height)
         return
 
-    recognizer_module.init(model_complexity=args.model_complexity)
+    # ====================== 关键：开启窗口可调整大小 ======================
+    cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_NORMAL)  # 这一行让窗口可拖拽缩放
 
-    camera = CameraService(camera_index=camera_index, width=args.width, height=args.height, fps=args.fps, zoom=args.zoom)
+    camera = CameraService(camera_index=camera_index, width=args.width, height=args.height, fps=args.fps)
     last_time = time.perf_counter()
     current_fps: Optional[float] = None
-    frame_count = 0
-    last_result = {"label": "未识别", "score": 0.0, "type": "dynamic"}
-
-    cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_NORMAL)
 
     try:
         while True:
@@ -40,13 +37,8 @@ def main() -> None:
             if not success or frame is None:
                 frame = _blank_frame(args.width, args.height)
                 result = {"label": "未识别", "score": 0.0, "message": "摄像头读取失败"}
-            elif args.skip_frames > 0 and frame_count % (args.skip_frames + 1) != 0:
-                result = last_result
             else:
                 result = recognizer_module.recognize(frame)
-                last_result = result
-
-            frame_count += 1
 
             now = time.perf_counter()
             elapsed = now - last_time
@@ -73,11 +65,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--width", type=int, default=640, help="Capture width. Default: 640")
     parser.add_argument("--height", type=int, default=480, help="Capture height. Default: 480")
     parser.add_argument("--fps", type=int, default=30, help="Target capture FPS. Default: 30")
-    parser.add_argument("--zoom", type=float, default=0.0, help="Camera zoom (100=1x). 0=skip. Default: 0")
-    parser.add_argument("--skip-frames", type=int, default=0, metavar="N",
-                        help="Only run recognition every N+1 frames. 0=every frame. Default: 0")
-    parser.add_argument("--model-complexity", type=int, default=1, choices=(0, 1, 2),
-                        help="MediaPipe Hands model: 0=fastest, 1=balanced, 2=accurate. Default: 1")
     return parser.parse_args()
 
 
@@ -102,10 +89,12 @@ def _blank_frame(width: int, height: int) -> np.ndarray:
 
 
 def _show_error(message: str, width: int, height: int) -> None:
+    # 错误窗口也支持缩放
+    cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_NORMAL)
+    
     frame = _blank_frame(width, height)
     result = {"label": "未识别", "score": 0.0, "message": message}
     output = render(frame, result)
-    cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_NORMAL)
     cv2.imshow(WINDOW_NAME, output)
 
     while True:
