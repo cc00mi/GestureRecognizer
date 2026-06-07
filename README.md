@@ -4,7 +4,7 @@
 
 ## 演示视频
 
-> 🎥 演示视频链接（待添加）
+> 🎥 https://www.bilibili.com/video/BV15mE86tEui/?spm_id_from=333.1387.homepage.video_card.click
 >
 
 ## 快速开始
